@@ -1,0 +1,8 @@
+package com.infinitecampus.ccs.backpack_2024;
+
+public class JavaVersionTest {
+    public static void main(String[] args) {
+        var message = "Hello from Java 17!";
+        System.out.println(message);
+    }
+}

@@ -1,0 +1,7 @@
+# Exclude the three specific Java projects
+clientconnect/
+
+# Standard Java and VS Code ignores
+*.class
+*.jar
+.vscode/
