@@ -47,8 +47,8 @@ public class GoogleTranslateDocument implements AutoCloseable {
     private static final String SQL_FETCH_CONFIG = 
         "SELECT TOP 1 JSON_VALUE(serviceAccount,'$.project_id') Google_projectID, " +
         "[serviceAccount] " +
-        "FROM [ccs_dev].[CCS_TranslationDocument] td " +
-        "INNER JOIN ccs_dev.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
+        "FROM [ccs_lng].[CCS_TranslationDocument] td " +
+        "INNER JOIN ccs_lng.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
         "WHERE tc.active = 1 AND completed = 0 AND token = TRY_CAST(? AS UNIQUEIDENTIFIER) " +
         "AND serviceprovider='Google'";
 
@@ -352,7 +352,7 @@ public class GoogleTranslateDocument implements AutoCloseable {
             
             // Create translation text for schedule name
             String tokenUUID = "";
-            sql = "{call ccs_dev.CCS_Create_Backpack_TranslationText(?,?,?,?,?)}";
+            sql = "{call ccs_lng.CCS_Create_Backpack_TranslationText(?,?,?,?,?)}";
             try (CallableStatement cstmt = campusConnection.prepareCall(sql)) {
                 cstmt.setInt(1, translatedScheduleID);    
                 cstmt.setString(2, scheduleName);
@@ -368,7 +368,7 @@ public class GoogleTranslateDocument implements AutoCloseable {
             
             // Get translated schedule name
             sql = "SELECT JSON_VALUE(tt.translationData,'$.keyID')[scheduleID], outputData " +
-                  "FROM ccs_dev.CCS_TranslationText tt WHERE completed=1 AND " +
+                  "FROM ccs_lng.CCS_TranslationText tt WHERE completed=1 AND " +
                   "token=TRY_CAST(? AS UNIQUEIDENTIFIER)";
                   
             try (PreparedStatement pstmt = campusConnection.prepareStatement(sql)) {

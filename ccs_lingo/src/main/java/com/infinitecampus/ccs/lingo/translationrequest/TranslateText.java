@@ -49,15 +49,15 @@ public class TranslateText implements AutoCloseable {
     // SQL Queries
     private static final String SQL_FETCH_CONFIG = 
         "SELECT TOP 1 serviceAccount, serviceprovider, REPLACE(tc.onCompleteSQL,'{selectedID}','?')[onCompleteSQL] " +
-        "FROM [ccs_dev].[CCS_TranslationText] td " +
-        "INNER JOIN ccs_dev.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
+        "FROM [ccs_lng].[CCS_TranslationText] td " +
+        "INNER JOIN ccs_lng.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
         "WHERE tc.active = 1 AND completed = 0 AND token = TRY_CAST(? AS UNIQUEIDENTIFIER)";
 
     private static final String SQL_GET_TRANSLATIONS = 
-        "{call ccs_dev.CCS_Get_OLR_TranslationText(?)}";
+        "{call ccs_lng.CCS_Get_OLR_TranslationText(?)}";
 
     private static final String SQL_UPDATE_TRANSLATION = 
-        "UPDATE [ccs_dev].[CCS_TranslationText] " +
+        "UPDATE [ccs_lng].[CCS_TranslationText] " +
         "SET [completed] = 1, [completedDate] = GETDATE(), outputData = ? " +
         "WHERE translationTextID = ?";
     private static String SQL_UPDATE_CAMPUS ="";

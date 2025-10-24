@@ -15,7 +15,7 @@ import com.infinitecampus.ccs.lingo.utility.LogHelper;
 public class Configuration {
     private static final Logger logger = LogManager.getLogger(Configuration.class);
     private static final String SQL_GET_CONFIGURATION=
-        "SELECT * FROM ccs_dev.CCS_LingoConfiguration WHERE active=1";
+        "SELECT * FROM ccs_lng.CCS_LingoConfiguration WHERE active=1";
    
     private static volatile Configuration instance;
 
@@ -43,17 +43,83 @@ public class Configuration {
        }
        return instance;
    }
+   /**
+     * Gets the backpack connection. Creates it if it doesn't exist and credentials are valid.
+     * Returns null if backpack is not configured or contains placeholder values.
+     */
    public Connection getBackpackConnection() {
 
-        if (backpackConnection == null) {
+        if (!isBackpackConfigured()) {
+            logger.info("Backpack connection not configured or contains placeholder values");
+            return null;
+        }
+         // Check if existing connection is still valid
+         if (backpackConnection != null) {
             try {
-                backpackConnection = DriverManager.getConnection(backpackUrl, backpackUsername, backpackPassword);
+                if (!backpackConnection.isClosed() && backpackConnection.isValid(5)) {
+                    return backpackConnection;
+                }
             } catch (SQLException e) {
-                logger.error("Error establishing Backpack connection: " + e.getMessage(), e);
+                logger.error("Existing backpack connection is invalid: {}", e.getMessage());
+                backpackConnection = null;
             }
         }
-        System.out.println("Backpack Connection: " + backpackConnection);
-        return backpackConnection;
+         // Attempt to create new connection
+         try {
+            logger.info("Establishing Backpack connection to: {}", maskUrl(backpackUrl));
+            backpackConnection = DriverManager.getConnection(backpackUrl, backpackUsername, backpackPassword);
+            logger.info("Backpack connection established successfully");
+            return backpackConnection;
+        } catch (SQLException e) {
+            logger.error("Error establishing Backpack connection: " + e.getMessage(), e);
+            return null;
+        }
+
+       // if (backpackConnection == null) {
+       //     try {
+       //         backpackConnection = DriverManager.getConnection(backpackUrl, backpackUsername, backpackPassword);
+      //      } catch (SQLException e) {
+      //          logger.error("Error establishing Backpack connection: " + e.getMessage(), e);
+      //      }
+      //  }
+      //  System.out.println("Backpack Connection: " + backpackConnection);
+      //  return backpackConnection;
+    }
+        /**
+     * Checks if backpack is properly configured with real values (not placeholders)
+     */
+    public boolean isBackpackConfigured() {
+        if (backpackUrl == null || backpackUsername == null || backpackPassword == null) {
+            return false;
+        }
+        
+        // Check for common placeholder values
+        String urlUpper = backpackUrl.toUpperCase();
+        if (urlUpper.contains("SERVERNAME") || 
+            urlUpper.contains("LOCALHOST") ||
+            urlUpper.contains("PLACEHOLDER") ||
+            urlUpper.contains("CHANGEME") ||
+            urlUpper.contains("TODO") ||
+            urlUpper.contains("TBD")) {
+            return false;
+        }
+        
+        // Check username/password for placeholders
+        String userUpper = backpackUsername.toUpperCase();
+        String passUpper = backpackPassword.toUpperCase();
+        if (userUpper.contains("PLACEHOLDER") || userUpper.contains("CHANGEME") ||
+            passUpper.contains("PLACEHOLDER") || passUpper.contains("CHANGEME")) {
+            return false;
+        }
+        
+        return true;
+    }
+    /**
+     * Masks sensitive parts of URL for logging
+     */
+    private String maskUrl(String url) {
+        if (url == null) return "null";
+        return url.replaceAll("password=[^;]+", "password=***");
     }
     public String getRequestOutputDirectory(){
         return requestOutputDirectory;

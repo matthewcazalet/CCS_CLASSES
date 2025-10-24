@@ -66,8 +66,8 @@ public class AzureTranslateDocument implements AutoCloseable {
         "JSON_VALUE(serviceAccount,'$.source_sasToken') source_sasToken, " +
         "JSON_VALUE(serviceAccount,'$.target_sasToken') target_sasToken, " +
         "serviceprovider, [serviceAccount] " +
-        "FROM [ccs_dev].[CCS_TranslationDocument] td " +
-        "INNER JOIN ccs_dev.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
+        "FROM [ccs_lng].[CCS_TranslationDocument] td " +
+        "INNER JOIN ccs_lng.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
         "WHERE tc.active = 1 AND completed = 0 AND serviceprovider='azure' " +
         "AND token = TRY_CAST(? AS UNIQUEIDENTIFIER);";
 
@@ -897,7 +897,7 @@ private String constructBlobUrl(String containerName, String fileName) {
             
             // Create translation text for schedule name
             String tokenUUID = "";
-            sql = "{call ccs_dev.CCS_Create_Backpack_TranslationText(?,?,?,?,?)}";
+            sql = "{call ccs_lng.CCS_Create_Backpack_TranslationText(?,?,?,?,?)}";
             try (CallableStatement cstmt = campusConnection.prepareCall(sql)) {
                 cstmt.setInt(1, translatedScheduleID);    
                 cstmt.setString(2, scheduleName);
@@ -913,7 +913,7 @@ private String constructBlobUrl(String containerName, String fileName) {
             
             // Get translated schedule name
             sql = "SELECT JSON_VALUE(tt.translationData,'$.keyID')[scheduleID], outputData " +
-                  "FROM ccs_dev.CCS_TranslationText tt WHERE completed=1 AND " +
+                  "FROM ccs_lng.CCS_TranslationText tt WHERE completed=1 AND " +
                   "token=TRY_CAST(? AS UNIQUEIDENTIFIER)";
                   
             try (PreparedStatement pstmt = campusConnection.prepareStatement(sql)) {

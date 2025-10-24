@@ -68,8 +68,8 @@ public class AzureTranslateText implements AutoCloseable {
         "COALESCE(JSON_VALUE(serviceAccount,'$.text_translation_apiversion'),?) apiversion, " +
         "COALESCE(JSON_VALUE(serviceAccount,'$.text_translation_location'),?) location, " +
         "serviceprovider, [serviceAccount] " +
-        "FROM [ccs_dev].[CCS_TranslationText] td " +
-        "INNER JOIN ccs_dev.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
+        "FROM [ccs_lng].[CCS_TranslationText] td " +
+        "INNER JOIN ccs_lng.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
         "WHERE tc.active = 1 AND completed = 0 AND serviceprovider='Azure' " +
         "AND token = TRY_CAST(? AS UNIQUEIDENTIFIER)";
 
@@ -235,8 +235,13 @@ public class AzureTranslateText implements AutoCloseable {
 
     private Request createTranslationRequest(JsonArray requestBody, String targetLanguage) {
         String url = String.format("%stranslate?api-version=%s&from=%s&to=%s",
-            azureConfig.endpoint, azureConfig.apiVersion, DEFAULT_SOURCE_LANGUAGE, targetLanguage);
-
+        azureConfig.endpoint, azureConfig.apiVersion, DEFAULT_SOURCE_LANGUAGE, targetLanguage);
+    
+        instanceLogger.logDebug("Request URL: {}", url);
+        instanceLogger.logDebug("Request Body: {}", requestBody.toString());
+        instanceLogger.logDebug("API Key (first 10 chars): {}", azureConfig.keyId.substring(0, Math.min(10, azureConfig.keyId.length())));
+        instanceLogger.logDebug("Region: {}", azureConfig.location);
+    
         return new Request.Builder()
             .url(url)
             .post(RequestBody.create(requestBody.toString(), JSON_MEDIA_TYPE))
@@ -248,7 +253,10 @@ public class AzureTranslateText implements AutoCloseable {
 
     private String handleTranslationResponse(Response response) throws IOException {
         if (!response.isSuccessful()) {
-            throw new IOException("Unexpected response code: " + response);
+            ResponseBody errorBody = response.body();
+            String errorMessage = errorBody != null ? errorBody.string() : "No error body";
+            instanceLogger.logError("Azure API Error - Code: {}, Body: {}", response.code(), errorMessage);
+            throw new IOException("Unexpected response code: " + response + ", Error: " + errorMessage);
         }
 
         ResponseBody responseBody = response.body();

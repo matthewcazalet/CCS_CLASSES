@@ -58,16 +58,16 @@ public class TranslateDocument implements AutoCloseable{
     // SQL Queries
     private static final String SQL_FETCH_CONFIG = 
         "SELECT TOP 1 serviceAccount, serviceprovider " +
-        "FROM [ccs_dev].[CCS_TranslationDocument] td " +
-        "INNER JOIN ccs_dev.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
+        "FROM [ccs_lng].[CCS_TranslationDocument] td " +
+        "INNER JOIN ccs_lng.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
         "WHERE tc.active = 1 AND completed = 0 AND token = TRY_CAST(? AS UNIQUEIDENTIFIER)";
-    private static final String SQL_GET_TRANSLATIONS =  "{call ccs_dev.CCS_Get_TranslationDocument(?)}";
+    private static final String SQL_GET_TRANSLATIONS =  "{call ccs_lng.CCS_Get_TranslationDocument(?)}";
     private static final String SQL_UPDATE_TRANSLATION = 
-       "UPDATE [ccs_dev].CCS_TranslationDocument " +
+       "UPDATE [ccs_lng].CCS_TranslationDocument " +
         "SET [completed] = 1, [completedDate] = GETDATE(), completedName = ?,notes = ? " +
         "WHERE translationDocumentID = ?";
-    private static final String SQL_UPDATE_CAMPUS ="{call ccs_dev.CCS_Create_SPED_StapleDocument(?)}";
-    private static final String SQL_GET_TRANSLATEDSCHEDULENAME="SELECT JSON_VALUE(tt.translationData,'$.keyID')[scheduleID],outputData FROM ccs_dev.CCS_TranslationText tt "
+    private static final String SQL_UPDATE_CAMPUS ="{call ccs_lng.CCS_Create_SPED_StapleDocument(?)}";
+    private static final String SQL_GET_TRANSLATEDSCHEDULENAME="SELECT JSON_VALUE(tt.translationData,'$.keyID')[scheduleID],outputData FROM ccs_lng.CCS_TranslationText tt "
         +"WHERE completed=1 AND token=TRY_CAST(? AS UNIQUEIDENTIFIER)";
     private static final String SQL_UPDATE_SCHEDULENAME="UPDATE [schedule] SET schedule_name=CONCAT(?,' ',schedule_name) WHERE scheduleID=?";  
     // Instance fields
@@ -516,7 +516,7 @@ public class TranslateDocument implements AutoCloseable{
                     }
     
                     // Translate schedule name
-                    try (CallableStatement cstmt = campusConnection.prepareCall("{call ccs_dev.CCS_Create_Backpack_TranslationText(?,?,?,?,?)}")) {
+                    try (CallableStatement cstmt = campusConnection.prepareCall("{call ccs_lng.CCS_Create_Backpack_TranslationText(?,?,?,?,?)}")) {
                         cstmt.setInt(1, translatedScheduleID);
                         cstmt.setString(2, scheduleName);
                         cstmt.setString(3, targetLanguage);

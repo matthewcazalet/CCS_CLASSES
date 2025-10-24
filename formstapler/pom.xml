@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+<!-- Build commands: -->
+<!-- mvn clean compile -Pjava8  compiles against 1.8-->
+<!-- mvn clean compile -Pjava17  compiles against 17-->
+        <!-- ==================== PROJECT COORDINATES ==================== -->
+        <groupId>com.infinitecampus.ccs.formstapler</groupId>
+        <artifactId>ccs_formstapler</artifactId>
+        <version>2025.10</version>
+        <packaging>jar</packaging>
+        <name>formstapler</name>
+
+
+  <!-- ==================== PROPERTIES ==================== -->
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!--default 1.8 can be overwrittwn via profile-->
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <!-- Logging Version -->
+        <log4j.version>2.17.2</log4j.version>
+    </properties>
+<dependencies>
+  
+  <!-- ========== INFINITE CAMPUS CORE DEPENDENCY ========== -->
+  <dependency>
+    <groupId>com.infinitecampus</groupId>
+    <artifactId>infinitecampus_classes</artifactId>
+    <version>1.0</version>
+    <scope>system</scope>
+    <systemPath>${project.basedir}/../../GlobalLibrary/infinitecampus-classes-2527.jar</systemPath>
+  </dependency>
+ <dependency>
+        <groupId>javax.servlet</groupId>
+        <artifactId>javax.servlet-api</artifactId>
+        <version>4.0.1</version>
+        <scope>provided</scope>
+    </dependency>
+  <!-- ========== LOGGING DEPENDENCIES ========== -->
+  <dependency>
+    <groupId>org.apache.logging.log4j</groupId>
+    <artifactId>log4j-core</artifactId>
+    <version>${log4j.version}</version>
+    <scope>provided</scope>
+  </dependency>
+  <dependency>
+    <groupId>org.apache.logging.log4j</groupId>
+    <artifactId>log4j-1.2-api</artifactId>
+    <version>${log4j.version}</version>
+    <scope>provided</scope>
+  </dependency>
+  <!-- Apache HTTP Client (Currently not used) -->
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>4.5.14</version>
+    </dependency>
+
+</dependencies>
+
+  <!-- ==================== PROFILES ==================== -->
+  <profiles>
+   <!-- ========== JAVA 8 PROFILE ========== -->
+    <!-- Use: mvn clean compile -Pjava8 -->
+    <profile>
+      <id>java8</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.11.0</version>
+            <configuration>
+              <source>1.8</source>
+              <target>1.8</target>
+              <release>8</release>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <!-- ========== JAVA 17 PROFILE ========== -->
+    <!-- Use: mvn clean compile -Pjava17 -->
+    <profile>
+      <id>java17</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.11.0</version>
+            <configuration>
+              <source>17</source>
+              <target>17</target>
+              <!-- No <release> here -->
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

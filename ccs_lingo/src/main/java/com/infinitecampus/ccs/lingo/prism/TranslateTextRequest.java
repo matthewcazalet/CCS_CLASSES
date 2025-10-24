@@ -15,7 +15,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class TranslateTextRequest extends CampusObject {
-    private static final String SQL_GET_TRANSLATION_TEXT_BATCH = "{call ccs_dev.CCS_Create_TranslationText_Batch(?,?)}";
+    private static final String SQL_GET_TRANSLATION_TEXT_BATCH = "{call ccs_lng.CCS_Create_TranslationText_Batch(?,?)}";
     private static Timestamp requestTimestamp = new Timestamp(System.currentTimeMillis());
     private static final Logger logger = LogManager.getLogger(TranslateText.class);
     

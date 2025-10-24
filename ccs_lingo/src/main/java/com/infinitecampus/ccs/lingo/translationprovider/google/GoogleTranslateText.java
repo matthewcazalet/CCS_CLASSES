@@ -24,14 +24,15 @@ import java.sql.SQLException;
 
 import com.infinitecampus.ccs.lingo.authenticate.Authenticate;
 import com.infinitecampus.ccs.lingo.settings.Configuration;
-import com.infinitecampus.ccs.lingo.translationprovider.aws.AwsTranslateText;
+//import com.infinitecampus.ccs.lingo.translationprovider.aws.AwsTranslateText;
 import com.google.cloud.translate.v3.*;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.api.gax.rpc.ApiException;
 
 import com.infinitecampus.ccs.lingo.utility.LogHelper;
 
-import software.amazon.awssdk.services.translate.model.TranslateException;
+//import software.amazon.awssdk.services.translate.model.TranslateException;
 
 /**
  * Handles text translation using Google Cloud Translation API.
@@ -43,7 +44,7 @@ public class GoogleTranslateText implements AutoCloseable {
     // Static initialization block
     static {
         try {
-            logger = new LogHelper(Configuration.getInstance()).createLogger(AwsTranslateText.class);
+            logger = new LogHelper(Configuration.getInstance()).createLogger(GoogleTranslateText.class);
         } catch (Exception e) {
             // If logger initialization fails, throw runtime exception
             throw new ExceptionInInitializerError("Failed to initialize logger: " + e.getMessage());
@@ -59,8 +60,8 @@ public class GoogleTranslateText implements AutoCloseable {
         "SELECT TOP 1 " +
         "JSON_VALUE(serviceAccount,'$.project_id') Google_projectID, " +
         "[serviceAccount] " +
-        "FROM [ccs_dev].[CCS_TranslationText] td " +
-        "INNER JOIN ccs_dev.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
+        "FROM [ccs_lng].[CCS_TranslationText] td " +
+        "INNER JOIN ccs_lng.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
         "WHERE tc.active = 1 AND completed = 0 " +
         "AND token = TRY_CAST(? AS UNIQUEIDENTIFIER)";
 
@@ -226,8 +227,8 @@ public class GoogleTranslateText implements AutoCloseable {
             TranslateTextResponse response = translationClient.translateText(request);
             System.out.println("Translation completed successfully");            
             return extractTranslation(response);
-       } catch (TranslateException e) {
-            logger.logError("Google translation failed: " + e.awsErrorDetails().errorMessage(), e);
+       } catch (ApiException e) { 
+            logger.logError("Google translation failed: " + e.getMessage(), e);
             throw new TranslationException("Google translation failed", e);
         } catch (Exception e) {
             logger.logError("Unexpected error during translation: " + e.getMessage(), e);

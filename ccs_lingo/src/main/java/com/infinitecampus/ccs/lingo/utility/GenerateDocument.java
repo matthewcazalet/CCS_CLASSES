@@ -49,14 +49,14 @@ public class GenerateDocument implements AutoCloseable {
     
     // SQL Queries
     private static final String SQL_FETCH_CONFIG = "SELECT TOP 1 crc.username,crc.password,crc.url,crc.[encryptionversion] "+
-        "FROM [ccs_dev].[CCS_Request] cr INNER JOIN [ccs_dev].[CCS_RequestConfig]  crc ON cr.requestconfigID=crc.requestconfigID "+
+        "FROM [ccs_lng].[CCS_Request] cr INNER JOIN [ccs_lng].[CCS_RequestConfig]  crc ON cr.requestconfigID=crc.requestconfigID "+
         "WHERE cr.completed=0 AND cr.token = TRY_CAST(? AS UNIQUEIDENTIFIER)";
     
     private static final String SQL_GET_DOCUMENTS = "SELECT requestID, JSON_VALUE(requestData, '$.documentname')[documentname], " +
         "JSON_VALUE(requestData, '$.path')[path], JSON_VALUE(requestData, '$.keyid')[keyid], " +
-        "[type] FROM [ccs_dev].[CCS_Request] WHERE token = TRY_CAST(? as uniqueidentifier) AND completed=0";
+        "[type] FROM [ccs_lng].[CCS_Request] WHERE token = TRY_CAST(? as uniqueidentifier) AND completed=0";
     
-    private static final String SQL_UPDATE_REQUEST = "UPDATE [ccs_dev].CCS_Request " +
+    private static final String SQL_UPDATE_REQUEST = "UPDATE [ccs_lng].CCS_Request " +
         "SET [completed] = CASE WHEN ? = 'ERROR' THEN 0 ELSE 1 END, " +
         "[completedDate] = CASE WHEN ? = 'ERROR' THEN NULL ELSE GETDATE() END, " +
         "completedName = ? " +
@@ -68,11 +68,12 @@ public class GenerateDocument implements AutoCloseable {
     private HttpClientContext context;
     private String baseUrl;
     
-    private final Connection Campusconnection;
+    private final Connection campusConnection;
     private final Connection backpackConnection;
     private final String authToken;
     private final String outputFileLocation;
     private final Configuration config;
+    private final boolean backpackAvailable;
 
     /**
      * Custom exceptions
@@ -147,13 +148,20 @@ public class GenerateDocument implements AutoCloseable {
             throw new SecurityException("Invalid Token. Access Denied.");
         }
         
-        this.Campusconnection = connection;
+        this.campusConnection = connection;
         this.backpackConnection = backpackconnection;
         this.authToken = token;
         this.config = configuration;
 
         this.outputFileLocation = config.getRequestOutputDirectory() + File.separator + authToken;
         
+        this.backpackAvailable = (backpackConnection != null);
+        if (backpackAvailable) {
+            logger.logInfo("Backpack connection available");
+        } else {
+            logger.logInfo("Backpack connection not available - Backpack documents will be skipped");
+        }
+
         logger.logDebug("Setting up HTTP client components");
         this.cookieStore = new BasicCookieStore();
         this.context = HttpClientContext.create();
@@ -177,7 +185,7 @@ public class GenerateDocument implements AutoCloseable {
 private void initialize() throws SQLException, NoRecordsFoundException, GenerateException {
     logger.logDebug("Starting initialization process");
 
-    try (PreparedStatement stmt = Campusconnection.prepareStatement(SQL_FETCH_CONFIG)) {
+    try (PreparedStatement stmt = campusConnection.prepareStatement(SQL_FETCH_CONFIG)) {
         stmt.setString(1, authToken);
         logger.logDebug("Executing config fetch query for token: [{}]", authToken);
         
@@ -198,7 +206,7 @@ private void initialize() throws SQLException, NoRecordsFoundException, Generate
             logger.logDebug("Attempting login with username: [{}]", username);
             login(username, password);
             
-            try(PreparedStatement pstmt = Campusconnection.prepareStatement("UPDATE [ccs_dev].[CCS_RequestConfig] SET [encryptionversion]=1,[password]=? WHERE [encryptionversion]=0")){
+            try(PreparedStatement pstmt = campusConnection.prepareStatement("UPDATE [ccs_lng].[CCS_RequestConfig] SET [encryptionversion]=1,[password]=? WHERE [encryptionversion]=0")){
                     pstmt.setString(1,PasswordEncryptionUtility.encrypt(password));
                     pstmt.executeUpdate();
             }
@@ -317,16 +325,29 @@ public void procedure() throws GenerateException {
     FileUtilityHelper.createFolderIfNotExists(outputFileLocation);
     logger.logDebug("Output directory created/verified: [{}]", outputFileLocation);
 
-    try (PreparedStatement stmt = Campusconnection.prepareStatement(SQL_GET_DOCUMENTS)) {
+    try (PreparedStatement stmt = campusConnection.prepareStatement(SQL_GET_DOCUMENTS)) {
         stmt.setString(1, authToken);
         logger.logDebug("Executing document query for token: [{}]", authToken);
         
         try (ResultSet rs = stmt.executeQuery()) {
             int documentCount = 0;
+            int skippedCount = 0;
+
             while (rs.next()) {
                 documentCount++;
-                logger.logDebug("Processing document {} for request ID: [{}]", 
-                    documentCount, rs.getInt("requestID"));
+                String type = rs.getString("type");
+                int requestId = rs.getInt("requestID");
+
+                //Check if backpack document and backpack not available
+                if (type.equalsIgnoreCase("backpack") && !backpackAvailable) {
+                    logger.logInfo("Skipping backpack document (ID: {}) - Backpack connection not available", requestId);
+                    markRequestAsError(requestId, "ERROR: Backpack not configured");
+                    skippedCount++;
+                    continue;  // Skip to next document
+                }
+
+                logger.logDebug("Processing document {} for request ID: [{}], Type: [{}]", 
+                documentCount, requestId, type);
                 processRequest(rs);
             }
             
@@ -359,7 +380,8 @@ private void processRequest(ResultSet rs) throws GenerateException, SQLException
             pdfContent = retrieveBackpackPDF(rs.getInt("keyid"));
         } else {
             logger.logDebug("Generating Campus document for request ID: [{}]", requestId);
-            pdfContent = generateCampusDocument(baseUrl + "/" + path);
+            //get rid of trailing and leading "/""
+            pdfContent = generateCampusDocument(baseUrl.replaceAll("/+$", "") + "/" +  path.replaceAll("^/+", ""));
         }
        
         if (pdfContent != null) {
@@ -387,11 +409,27 @@ private void processRequest(ResultSet rs) throws GenerateException, SQLException
         throw new GenerateException("Document generation failed for ID " + requestId + ": " + e.getMessage(), e);
     }
 }
-
+// NEW METHOD
+private void markRequestAsError(int requestID, String errorMessage) {
+    logger.logDebug("Marking request as error - ID: [{}], Error: [{}]", requestID, errorMessage);
+    
+    try (PreparedStatement stmt = campusConnection.prepareStatement(SQL_UPDATE_REQUEST)) {
+        stmt.setString(1, "ERROR");
+        stmt.setString(2, "ERROR");
+        stmt.setString(3, errorMessage);
+        stmt.setInt(4, requestID);
+        
+        stmt.executeUpdate();
+        logger.logInfo("Marked request as error - ID: [{}]", requestID);
+        
+    } catch (SQLException e) {
+        logger.logError("Database error marking request [{}] as error: {}", requestID, e.getMessage(), e);
+    }
+}
 private void markRequest(int requestID, String completedName) throws GenerateException {
     logger.logDebug("Marking request as completed - ID: [{}], Name: [{}]", requestID, completedName);
     
-    try (PreparedStatement stmt = Campusconnection.prepareStatement(SQL_UPDATE_REQUEST)) {
+    try (PreparedStatement stmt = campusConnection.prepareStatement(SQL_UPDATE_REQUEST)) {
         stmt.setString(1, completedName);
         stmt.setString(2, completedName);
         stmt.setString(3, completedName);

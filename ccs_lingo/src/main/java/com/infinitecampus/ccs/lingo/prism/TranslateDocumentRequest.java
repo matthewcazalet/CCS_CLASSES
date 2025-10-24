@@ -18,7 +18,7 @@ import com.infinitecampus.ccs.lingo.utility.LogHelper;
 
 
 public class TranslateDocumentRequest extends CampusObject {
-    private static final String SQL_GET_TRANSLATION_DOCUMENT_BATCH = "{call ccs_dev.CCS_Create_TranslationDocument_Batch(?,?)}";
+    private static final String SQL_GET_TRANSLATION_DOCUMENT_BATCH = "{call ccs_lng.CCS_Create_TranslationDocument_Batch(?,?)}";
     private static Timestamp requestTimestamp = new Timestamp(System.currentTimeMillis());
 
 
@@ -37,9 +37,22 @@ public class TranslateDocumentRequest extends CampusObject {
         super(con, appName);
     }
     public void translateDocumentProcedure(String token) throws Exception {
-        System.out.println("translateDocumentProcedure Started");
+        logger.info("translateDocumentProcedure Started with token: {}", token);
         Configuration config = Configuration.getInstance();
         config.loadConfiguration(con, appName);
+
+        // Get backpack connection only if configured
+        Connection backpackConn = null;
+        if (config.isBackpackConfigured()) {
+            backpackConn = config.getBackpackConnection();
+            if (backpackConn != null) {
+                logger.info("Using backpack connection");
+            } else {
+                logger.warn("Backpack configured but connection failed, proceeding without it");
+            }
+        } else {
+            logger.info("Backpack not configured, proceeding without it");
+        }
 
         try (CallableStatement stmt = con.prepareCall(SQL_GET_TRANSLATION_DOCUMENT_BATCH)) {
             stmt.setNull(1,java.sql.Types.TIMESTAMP);
@@ -50,7 +63,7 @@ public class TranslateDocumentRequest extends CampusObject {
                 if (rs.next()) {
                     outputRequestbatchID = rs.getString("requesttoken");
                     System.out.println("Request Token: " + outputRequestbatchID);
-                    try (OutputGenerationHandler outputrequesthandler = new OutputGenerationHandler(con, outputRequestbatchID, config)) {
+                    try (OutputGenerationHandler outputrequesthandler = new OutputGenerationHandler(con, backpackConn, outputRequestbatchID, config)) {
                         outputrequesthandler.generatedocument();
                         System.out.println("Request Token document generation completed successfully.");
                         translateDocumentbatchID = rs.getString("translatetoken");
@@ -86,9 +99,22 @@ public class TranslateDocumentRequest extends CampusObject {
         }
     }
     public void translateDocumentProcedure() throws Exception {
-        System.out.println("translateDocumentProcedure Started");
+        logger.debug("translateDocumentProcedure Started");
         Configuration config = Configuration.getInstance();
         config.loadConfiguration(con, appName);
+
+        // Get backpack connection only if configured
+        Connection backpackConn = null;
+        if (config.isBackpackConfigured()) {
+            backpackConn = config.getBackpackConnection();
+            if (backpackConn != null) {
+                logger.info("Using backpack connection");
+            } else {
+                logger.warn("Backpack configured but connection failed, proceeding without it");
+            }
+        } else {
+            logger.info("Backpack not configured, proceeding without it");
+        }
 
         try (CallableStatement stmt = con.prepareCall(SQL_GET_TRANSLATION_DOCUMENT_BATCH)) {
             stmt.setTimestamp(1, requestTimestamp);  
@@ -99,7 +125,7 @@ public class TranslateDocumentRequest extends CampusObject {
                 if (rs.next()) {
                     outputRequestbatchID = rs.getString("requesttoken");
                     System.out.println("Request Token: " + outputRequestbatchID);
-                    try (OutputGenerationHandler outputrequesthandler = new OutputGenerationHandler(con, outputRequestbatchID, config)) {
+                    try (OutputGenerationHandler outputrequesthandler =  new OutputGenerationHandler(con, backpackConn, outputRequestbatchID, config)) {
                         outputrequesthandler.generatedocument();
                         System.out.println("Request Token document generation completed successfully.");
                         translateDocumentbatchID = rs.getString("translatetoken");
@@ -139,18 +165,25 @@ public class TranslateDocumentRequest extends CampusObject {
         private final LogHelper logger = new LogHelper(Configuration.getInstance()).createLogger(OutputGenerationHandler.class);
         
         private final Connection connection;
+        private final Connection backpackConnection;
         private final String token;
         private final Configuration config;
         private GenerateDocument generateDocument;
-        public OutputGenerationHandler(Connection connection, String token, Configuration config) {
+        public OutputGenerationHandler(Connection connection, Connection backpackConnection, 
+                                      String token, Configuration config) {
             logger.logInfo("Initializing request handler for token: {}", token);         
           
 
             this.connection = connection;
+            this.backpackConnection = backpackConnection;
             this.token = token;
             this.config = config;
 
-            
+            if (backpackConnection != null) {
+                logger.logInfo("Backpack connection available for document generation");
+            } else {
+                logger.logInfo("No backpack connection - proceeding without it");
+            }
             
         }
        public void generatedocument() throws Exception {

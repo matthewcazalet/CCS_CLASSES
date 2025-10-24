@@ -1,0 +1,18 @@
+# Paths
+$projectDir = "C:\Users\mcazalet\OneDrive - Custom Computer Specialists, Inc\Documents\VSCodeEnv\Projects\ccs_lingo"
+$jarFile = Join-Path $projectDir "target\ccs_lingo-2025.06.jar"
+$destDir = "C:\INFINITECAMPUS\webapps\campus\WEB-INF\lib"
+$destFile = Join-Path $destDir "ccs_lingo-2025.06.jar"
+
+# Step 1: Run Maven build
+Write-Output "Running Maven build..."
+Set-Location $projectDir
+mvn clean package -U -Pjava8
+
+# Step 2: Copy JAR to destination
+if (Test-Path $jarFile) {
+    Copy-Item -Path $jarFile -Destination $destFile -Force
+    Write-Output "Copied $jarFile to $destFile"
+} else {
+    Write-Output "Build failed: JAR not found at $jarFile"
+}

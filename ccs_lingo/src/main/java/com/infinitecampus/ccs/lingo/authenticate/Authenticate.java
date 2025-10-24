@@ -9,7 +9,7 @@ public class Authenticate {
     private static Connection conn;
 
     private static boolean isTokenAuthenticated(String token, String tableName) {
-      String sql = "SELECT 1 FROM [ccs_dev].[" + tableName + "] WHERE token = TRY_CAST(? as uniqueidentifier)";
+      String sql = "SELECT 1 FROM [ccs_lng].[" + tableName + "] WHERE token = TRY_CAST(? as uniqueidentifier)";
       try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
           pstmt.setString(1, token);
           try (ResultSet rs = pstmt.executeQuery()) {

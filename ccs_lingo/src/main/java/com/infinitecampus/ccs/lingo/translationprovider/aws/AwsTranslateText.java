@@ -55,8 +55,8 @@ public class AwsTranslateText implements AutoCloseable {
         "SELECT TOP 1 JSON_VALUE(serviceAccount,'$.access_key') [access_key], " +
         "JSON_VALUE(serviceAccount,'$.secret_key') [secret_key], " +
         "serviceprovider, [serviceAccount] " +
-        "FROM [ccs_dev].[CCS_TranslationText] td " +
-        "INNER JOIN ccs_dev.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
+        "FROM [ccs_lng].[CCS_TranslationText] td " +
+        "INNER JOIN ccs_lng.CCS_TranslationConfig tc ON td.translationConfigID = tc.translationConfigID " +
         "WHERE tc.active = 1 AND completed = 0 AND serviceprovider='aws' " +
         "AND token = TRY_CAST(? AS UNIQUEIDENTIFIER);";
 
@@ -267,8 +267,10 @@ public void close() {
     instanceLogger.logDebug("Closing AWS translation service resources");
     if (awsTranslateClient != null) {
         try{
-          // not available until later version  awsTranslateClient.close();
-            com.infinitecampus.ccs.lingo.utility.AwsClientUtils.safeClose(awsTranslateClient, instanceLogger);
+          // not available until later version  ->2.20.81
+            awsTranslateClient.close();
+            //if we comment out the line above use this..
+            //com.infinitecampus.ccs.lingo.utility.AwsClientUtils.safeClose(awsTranslateClient, instanceLogger);
         } catch (Exception e) {
             instanceLogger.logError("Error closing AWS Translate client: ", e);
         }

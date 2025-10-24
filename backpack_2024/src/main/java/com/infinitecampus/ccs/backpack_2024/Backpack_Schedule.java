@@ -4,6 +4,7 @@ import com.infinitecampus.utility.Blowfish;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -55,7 +56,8 @@ public class Backpack_Schedule implements AutoCloseable {
       try {
          sql = "SELECT s.*,codeconfirmID,confirm_text,confirm_description,ca.campusAdhocText FROM [" + this.dbName + "]..Schedule s WITH (NOLOCK) LEFT OUTER JOIN [" + this.dbName + "]..CodeConfirm cc WITH (NOLOCK) ON cc.scheduleID=s.scheduleID  " + "LEFT OUTER JOIN [" + this.dbName + "].. [campusAdhoc]ca ON ca.campusadhocfilterID=s.campusadhocfilterID WHERE s.scheduleID= ?";
          this.pstmt = this.Backpack_Connection.prepareStatement(sql);
-         this.pstmt.setString(1, Blowfish.decrypt(this.Identifier, this.sCurrentDate));
+         //this.pstmt.setString(1, Blowfish.decrypt(this.Identifier, this.sCurrentDate));
+         this.pstmt.setInt(1, Integer.parseInt(Blowfish.decrypt(this.Identifier, this.sCurrentDate)));
          this.rs = this.pstmt.executeQuery();
 
          while(this.rs.next()) {
@@ -88,8 +90,264 @@ public class Backpack_Schedule implements AutoCloseable {
       }
 
    }
-
    public boolean Upsert() {
+      boolean breturn = false;
+      String sql = "";
+  
+      try {
+          SimpleDateFormat outputDateFormat = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+          int _irecordcount;
+          
+          if (this.Identifier != null && !this.Identifier.isEmpty()) {
+              // UPDATE existing record
+              sql = "UPDATE [" + this.dbName + "]..Schedule SET " +
+                    "schedule_Name=?, " +
+                    "schedule_modifydate=GETDATE(), " +
+                    "schedule_output_expires=?, " +
+                    "schedule_access=?, " +
+                    "modifiedbyID=?, " +
+                    "folderID=?, " +
+                    "schedule_freq_Daily=?, " +
+                    "schedule_start_date=?, " +
+                    "schedule_end_date=?, " +
+                    "schedule_time=?, " +
+                    "schedule_notification=?, " +
+                    "campusAdhocfilterID=?, " +
+                    "scheduleRptID=? " +
+                    "WHERE scheduleID=?";
+                    
+              this.pstmt = this.Backpack_Connection.prepareStatement(sql);
+              this.pstmt.setString(1, this.Name);
+              
+              if (this.Expire == null) {
+                  this.pstmt.setNull(2, java.sql.Types.TIMESTAMP);
+              } else {
+                  this.pstmt.setString(2, outputDateFormat.format(this.Expire));
+              }
+              
+              this.pstmt.setString(3, (this.Campus_Access ? "1" : "0") + 
+                                     (this.Guardian_Access ? "1" : "0") + 
+                                     (this.Student_Access ? "1" : "0"));
+                                     
+              if (this.ModifiedID == 0) {
+                  this.pstmt.setNull(4, java.sql.Types.INTEGER);
+              } else {
+                  this.pstmt.setInt(4, this.ModifiedID);
+              }
+              
+              if (this.FolderID == 0) {
+                  this.pstmt.setNull(5, java.sql.Types.INTEGER);
+              } else {
+                  this.pstmt.setInt(5, this.FolderID);
+              }
+              
+              this.pstmt.setInt(6, this.OccursDaily ? 1 : 0);
+              
+              if (this.StartDate == null) {
+                  this.pstmt.setNull(7, java.sql.Types.TIMESTAMP);
+              } else {
+                  this.pstmt.setString(7, outputDateFormat.format(this.StartDate));
+              }
+              
+              if (this.EndDate != null && this.OccursDaily) {
+                  this.pstmt.setString(8, outputDateFormat.format(this.EndDate));
+              } else {
+                  this.pstmt.setNull(8, java.sql.Types.TIMESTAMP);
+              }
+              
+              if (this.ScheduledTime == null) {
+                  this.pstmt.setNull(9, java.sql.Types.TIMESTAMP);
+              } else {
+                  this.pstmt.setString(9, outputDateFormat.format(this.ScheduledTime));
+              }
+              
+              this.pstmt.setString(10, this.EmailNotification);
+              
+              if (this.campusAdhocFilterID == 0) {
+                  this.pstmt.setNull(11, java.sql.Types.INTEGER);
+              } else {
+                  this.pstmt.setInt(11, this.campusAdhocFilterID);
+              }
+              
+              if (this.CustomReport != null && this.CustomReport.Identifier != null && !this.CustomReport.Identifier.isEmpty()) {
+                  this.pstmt.setInt(12, Integer.parseInt(this.CustomReport.Identifier));
+              } else {
+                  this.pstmt.setNull(12, java.sql.Types.INTEGER);
+              }
+              
+              this.pstmt.setInt(13, Integer.parseInt(Blowfish.decrypt(this.Identifier, this.sCurrentDate)));
+              
+              this.pstmt.executeUpdate();
+              breturn = true;
+              
+          } else {
+              // INSERT new record
+              sql = "INSERT INTO [" + this.dbName + "]..Schedule(" +
+                    "schedule_name, schedule_output_expires, schedule_access, folderID, modifiedByID, scheduleRptID, " +
+                    "schedule_freq_Daily, schedule_start_date, schedule_end_date, schedule_time, schedule_notification, campusAdhocfilterID) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    
+              this.pstmt = this.Backpack_Connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+              this.pstmt.setString(1, this.Name);
+              
+              if (this.Expire == null) {
+                  this.pstmt.setNull(2, java.sql.Types.TIMESTAMP);
+              } else {
+                  this.pstmt.setString(2, outputDateFormat.format(this.Expire));
+              }
+              
+              this.pstmt.setString(3, (this.Campus_Access ? "1" : "0") + 
+                                     (this.Guardian_Access ? "1" : "0") + 
+                                     (this.Student_Access ? "1" : "0"));
+                                     
+              if (this.FolderID == 0) {
+                  this.pstmt.setNull(4, java.sql.Types.INTEGER);
+              } else {
+                  this.pstmt.setInt(4, this.FolderID);
+              }
+              
+              if (this.ModifiedID == 0) {
+                  this.pstmt.setNull(5, java.sql.Types.INTEGER);
+              } else {
+                  this.pstmt.setInt(5, this.ModifiedID);
+              }
+              
+              if (this.CustomReport != null && this.CustomReport.Identifier != null && !this.CustomReport.Identifier.isEmpty()) {
+                  this.pstmt.setInt(6, Integer.parseInt(this.CustomReport.Identifier));
+              } else {
+                  this.pstmt.setNull(6, java.sql.Types.INTEGER);
+              }
+              
+              this.pstmt.setInt(7, this.OccursDaily ? 1 : 0);
+              
+              if (this.StartDate == null) {
+                  this.pstmt.setNull(8, java.sql.Types.TIMESTAMP);
+              } else {
+                  this.pstmt.setString(8, outputDateFormat.format(this.StartDate));
+              }
+              
+              if (this.EndDate != null && this.OccursDaily) {
+                  this.pstmt.setString(9, outputDateFormat.format(this.EndDate));
+              } else {
+                  this.pstmt.setNull(9, java.sql.Types.TIMESTAMP);
+              }
+              
+              if (this.ScheduledTime == null) {
+                  this.pstmt.setNull(10, java.sql.Types.TIMESTAMP);
+              } else {
+                  this.pstmt.setString(10, outputDateFormat.format(this.ScheduledTime));
+              }
+              
+              this.pstmt.setString(11, this.EmailNotification);
+              
+              if (this.campusAdhocFilterID == 0) {
+                  this.pstmt.setNull(12, java.sql.Types.INTEGER);
+              } else {
+                  this.pstmt.setInt(12, this.campusAdhocFilterID);
+              }
+              
+              _irecordcount = this.pstmt.executeUpdate();
+              if (_irecordcount > 0) {
+                  this.rs = this.pstmt.getGeneratedKeys();
+                  this.rs.next();
+                  this.Identifier = Blowfish.encrypt(String.valueOf(this.rs.getInt(1)), this.sCurrentDate);
+                  breturn = true;
+              }
+          }
+  
+          // Handle Custom Report Parameters
+          if (breturn && this.CustomReport != null && this.CustomReport.Identifier != null && !this.CustomReport.Identifier.isEmpty()) {
+              for (Backpack_CustomReport.Parameter _param : this.CustomReport.parameters) {
+                  sql = "UPDATE sp SET scheduleparamvalue=? " +
+                        "FROM [" + this.dbName + "]..schedule_parameter sp " +
+                        "INNER JOIN [" + this.dbName + "]..[Param] p ON sp.paramID=p.paramID " +
+                        "WHERE sp.scheduleID=? AND p.paramID=?";
+                        
+                  this.pstmt = this.Backpack_Connection.prepareStatement(sql);
+                  
+                  if (_param.SelectedValue != null) {
+                      this.pstmt.setString(1, _param.SelectedValue);
+                  } else {
+                      // Need to handle default value differently - might need a subquery
+                      this.pstmt.setNull(1, java.sql.Types.VARCHAR);
+                  }
+                  
+                  this.pstmt.setInt(2, Integer.parseInt(Blowfish.decrypt(this.Identifier, this.sCurrentDate)));
+                  this.pstmt.setInt(3, Integer.parseInt(Blowfish.decrypt(_param.Identifier, this.sCurrentDate)));
+                  
+                  _irecordcount = this.pstmt.executeUpdate();
+                  
+                  if (_irecordcount <= 0) {
+                      sql = "INSERT INTO [" + this.dbName + "]..Schedule_Parameter (scheduleID, paramID, scheduleparamvalue) " +
+                            "SELECT ?, p.paramID, COALESCE(?, p.DefaultValue) " +
+                            "FROM [" + this.dbName + "]..Param p WHERE p.paramID=?";
+                            
+                      this.pstmt = this.Backpack_Connection.prepareStatement(sql);
+                      this.pstmt.setInt(1, Integer.parseInt(Blowfish.decrypt(this.Identifier, this.sCurrentDate)));
+                      this.pstmt.setString(2, _param.SelectedValue);
+                      this.pstmt.setInt(3, Integer.parseInt(Blowfish.decrypt(_param.Identifier, this.sCurrentDate)));
+                      this.pstmt.executeUpdate();
+                  }
+              }
+          }
+  
+          // Handle Confirm Text
+          if (this.ConfirmText != null && !this.ConfirmText.isEmpty()) {
+              sql = "UPDATE [" + this.dbName + "]..CodeConfirm SET confirm_text=?, confirm_description=? " +
+                    "WHERE scheduleID IN (SELECT TOP 1 scheduleID FROM [" + this.dbName + "]..Schedule WHERE schedule_name=?)";
+                    
+              this.pstmt = this.Backpack_Connection.prepareStatement(sql);
+              this.pstmt.setString(1, this.ConfirmText);
+              
+              if (this.ConfirmAcknowledgement != null && !this.ConfirmAcknowledgement.isEmpty()) {
+                  this.pstmt.setString(2, this.ConfirmAcknowledgement);
+              } else {
+                  this.pstmt.setNull(2, java.sql.Types.VARCHAR);
+              }
+              
+              this.pstmt.setString(3, this.Name);
+              _irecordcount = this.pstmt.executeUpdate();
+              
+              if (_irecordcount == 0) {
+                  sql = "INSERT INTO [" + this.dbName + "]..CodeConfirm(scheduleID, confirm_text, confirm_description) " +
+                        "VALUES((SELECT TOP 1 scheduleID FROM [" + this.dbName + "]..Schedule WHERE schedule_name=?), ?, ?)";
+                        
+                  this.pstmt = this.Backpack_Connection.prepareStatement(sql);
+                  this.pstmt.setString(1, this.Name);
+                  this.pstmt.setString(2, this.ConfirmText);
+                  
+                  if (this.ConfirmAcknowledgement == null || this.ConfirmAcknowledgement.isEmpty()) {
+                      this.pstmt.setNull(3, java.sql.Types.VARCHAR);
+                  } else {
+                      this.pstmt.setString(3, this.ConfirmAcknowledgement);
+                  }
+                  
+                  this.pstmt.executeUpdate();
+              }
+          } else {
+              sql = "DELETE [" + this.dbName + "]..CodeConfirm " +
+                    "WHERE scheduleID IN (SELECT TOP 1 scheduleID FROM [" + this.dbName + "]..Schedule WHERE schedule_name=?)";
+                    
+              this.pstmt = this.Backpack_Connection.prepareStatement(sql);
+              this.pstmt.setString(1, this.Name);
+              this.pstmt.executeUpdate();
+          }
+          
+      } catch (Exception ex) {
+          System.out.println("Error in Upsert: " + ex.getMessage());
+          ex.printStackTrace();
+          breturn = false;
+      } finally {
+          try {
+              this.close_connections();
+          } catch (Exception ex) {
+              System.out.println("Error closing connections: " + ex.getMessage());
+          }
+      }
+  
+      return breturn;
+  }
+   public boolean Upsert_DEP() {
       boolean breturn = false;
       String sql = "";
 
@@ -185,8 +443,32 @@ public class Backpack_Schedule implements AutoCloseable {
       }
 
    }
-
    public boolean Delete() {
+      boolean breturn = false;
+      try {
+          this.pstmt = this.Backpack_Connection.prepareStatement(
+              "DELETE FROM [" + this.dbName + "]..Schedule WHERE scheduleID=?");
+          this.pstmt.setInt(1, Integer.parseInt(Blowfish.decrypt(this.Identifier, this.sCurrentDate)));
+          this.pstmt.executeUpdate();
+          breturn = true;
+      } catch (Exception ex) {
+          System.out.println(ex);
+          breturn = false;
+      } finally {
+          try {
+              if (this.Backpack_Connection != null) {
+                  this.Backpack_Connection.close();
+              }
+              if (this.pstmt != null) {
+                  this.pstmt.close();
+              }
+          } catch (SQLException ex) {
+              System.out.println(ex);
+          }
+      }
+      return breturn;
+  }
+   public boolean Delete_DEP() {
       boolean breturn = false;
 
       try {
